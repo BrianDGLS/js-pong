@@ -1,46 +1,50 @@
-import { Point } from "./point"
-import { coinToss } from "./helpers/coin-toss"
+import { GameObject } from "./game-object";
+import { coinToss } from "./helpers/coin-toss";
+import { Vector2D } from "./vector-2d";
 
-export class Ball {
-  public speed = 2
-  public color = '#fff'
+export class Ball extends GameObject {
+  public speed = 2;
+  public color = "#fff";
+  public radius = 6;
 
-  constructor(public point: Point, public radius: number) { }
+  constructor(public x: number, public y: number) {
+    super(x, y);
+  }
 
   public render(context: CanvasRenderingContext2D): void {
-    context.save()
-    context.translate(this.point.x, this.point.y)
+    context.save();
+    context.translate(this.x, this.y);
 
-    context.beginPath()
-    context.arc(0, 0, this.radius, 2 * Math.PI, 0)
-    context.closePath()
+    context.beginPath();
+    context.arc(0, 0, this.radius, 2 * Math.PI, 0);
+    context.closePath();
 
-    context.fillStyle = this.color
-    context.fill()
-    context.restore()
+    context.fillStyle = this.color;
+    context.fill();
+    context.restore();
   }
 
   public keepInVerticalBounds(screenHeight: number): void {
-    if (this.point.y + this.radius >= screenHeight) {
-      this.point.vy = -this.speed
+    if (this.y + this.radius >= screenHeight) {
+      this.vy = -this.speed;
     }
 
-    if (this.point.y - this.radius <= 0) {
-      this.point.vy = this.speed
+    if (this.y - this.radius <= 0) {
+      this.vy = this.speed;
     }
   }
 
-  public isHit(centerOfScreen: Point, point: Point): void {
-    const isOnLeft = point.x < centerOfScreen.x
-    this.point.vx = isOnLeft ? this.speed : -this.speed
-    this.point.vy = coinToss() ? -this.speed : this.speed
+  public isHit(centerOfScreen: Vector2D): void {
+    const isOnLeft = this.x < centerOfScreen.x;
+    this.vx = isOnLeft ? this.speed : -this.speed;
+    this.vy = coinToss() ? -this.speed : this.speed;
   }
 
   public isOutToLeft(): boolean {
-    return this.point.x + this.radius <= 0
+    return this.x + this.radius <= 0;
   }
 
   public isOutToRight(screenWidth: number): boolean {
-    return this.point.x - this.radius >= screenWidth
+    return this.x - this.radius >= screenWidth;
   }
 }
