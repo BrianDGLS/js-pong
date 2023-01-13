@@ -1,0 +1,9 @@
+{
+	"scripts": {
+		"dev": "esbuild 'src/pong.ts' --bundle --outfile='dist/pong.js' --watch",
+		"build": "esbuild 'src/pong.ts' --bundle --outfile='dist/pong.js'"
+	},
+	"dependencies": {
+		"esbuild": "^0.16.16"
+	}
+}
