@@ -1,50 +1,47 @@
 import { GameObject } from "./game-object";
-import { coinToss } from "./helpers/coin-toss";
-import { Vector2D } from "./vector-2d";
+import { Vector2d } from "./vector";
 
 export class Ball extends GameObject {
-  public speed = 2;
-  public color = "#fff";
+  public speed = 4;
   public radius = 6;
+  public color = "white";
 
-  constructor(public x: number, public y: number) {
-    super(x, y);
+  public reset(position: Vector2d) {
+    this.position = position;
+
+    const yVelocity = Math.random() > 0.5 ? -this.speed : this.speed;
+    this.velocity = new Vector2d(-this.speed, yVelocity);
   }
 
-  public render(context: CanvasRenderingContext2D): void {
+  public update() {
+    this.position.x += this.velocity.x;
+    this.position.y += this.velocity.y;
+  }
+
+  public render(context: CanvasRenderingContext2D) {
     context.save();
-    context.translate(this.x, this.y);
-
+    context.translate(this.position.x, this.position.y);
     context.beginPath();
-    context.arc(0, 0, this.radius, 2 * Math.PI, 0);
+    context.arc(0, 0, this.radius, 0, 2 * Math.PI);
     context.closePath();
-
     context.fillStyle = this.color;
     context.fill();
     context.restore();
   }
 
-  public keepInVerticalBounds(screenHeight: number): void {
-    if (this.y + this.radius >= screenHeight) {
-      this.vy = -this.speed;
-    }
-
-    if (this.y - this.radius <= 0) {
-      this.vy = this.speed;
-    }
+  public outToLeft(left: number): boolean {
+    return this.position.x + this.radius < left;
   }
 
-  public isHit(centerOfScreen: Vector2D): void {
-    const isOnLeft = this.x < centerOfScreen.x;
-    this.vx = isOnLeft ? this.speed : -this.speed;
-    this.vy = coinToss() ? -this.speed : this.speed;
+  public outToRight(right: number): boolean {
+    return this.position.x - this.radius > right;
   }
 
-  public isOutToLeft(): boolean {
-    return this.x + this.radius <= 0;
+  public hasHitUpperLimits(upperLimit: number): boolean {
+    return this.position.y + this.radius > upperLimit;
   }
 
-  public isOutToRight(screenWidth: number): boolean {
-    return this.x - this.radius >= screenWidth;
+  public hasHitLowerLimits(lowerLimit: number): boolean {
+    return this.position.y - this.radius < lowerLimit;
   }
 }

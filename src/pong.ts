@@ -1,96 +1,98 @@
 import { Ball } from "./ball";
+import { View } from "./view";
+import { Game } from "./game";
 import { Paddle } from "./paddle";
-import { Vector2D } from "./vector-2d";
-import { coinToss } from "./helpers/coin-toss";
-import { getCanvasElement } from "./helpers/get-canvas-element";
-import { detectCollision } from "./helpers/collision-detection";
-import { KEYS } from "./key-board";
+import { Canvas } from "./canvas";
+import { Vector2d } from "./vector";
+import { coinToss, detectCollision } from "./helpers";
 
-const AUTO_PLAY = false;
+const VIEW = new View(innerWidth * 0.6, innerHeight * 0.7);
+const CANVAS = new Canvas(document.body, VIEW);
+const CONTEXT = CANVAS.get2dContext();
 
-const $canvas = getCanvasElement(420, 420);
-const context = $canvas.getContext("2d") as CanvasRenderingContext2D;
+const BALL = new Ball();
+const PLAYER = new Paddle();
+const OPPONENT = new Paddle();
 
-const score = { player: 0, opponent: 0 };
+const GAME = new Game(VIEW);
 
-const centerOfScreen = new Vector2D($canvas.width / 2, $canvas.height / 2);
-const playerStartPosition = new Vector2D($canvas.width - 40, centerOfScreen.y);
-const opponentStartPosition = new Vector2D(40, centerOfScreen.y);
+GAME.setBallStartPosition(BALL);
+GAME.setPlayerStartPosition(PLAYER);
+GAME.setOpponentStartPosition(OPPONENT);
 
-const ball = new Ball(centerOfScreen.x, centerOfScreen.y);
-const player = new Paddle(playerStartPosition.x, playerStartPosition.y);
-const opponent = new Paddle(opponentStartPosition.x, opponentStartPosition.y);
-
-function drawScore(context: CanvasRenderingContext2D, text: string) {
-  context.save();
-  context.fillStyle = "#fff";
-  context.font = "48px monospace";
-  context.textBaseline = "bottom";
-  context.textAlign = "center";
-  context.fillText(text, centerOfScreen.x, 50);
-  context.restore();
+function drawBackground() {
+  CONTEXT.save();
+  CONTEXT.fillStyle = "black";
+  CONTEXT.strokeStyle = "white";
+  CONTEXT.fillRect(0, 0, VIEW.width, VIEW.height);
+  CONTEXT.beginPath();
+  CONTEXT.moveTo(VIEW.width / 2, 0);
+  CONTEXT.lineTo(VIEW.width / 2, VIEW.height);
+  CONTEXT.setLineDash([5, 15]);
+  CONTEXT.stroke();
+  CONTEXT.restore();
 }
 
-function renderBackground(context: CanvasRenderingContext2D): void {
-  context.fillRect(0, 0, $canvas.width, $canvas.height);
-}
+window.onload = function main() {
+  requestAnimationFrame(main);
 
-function setToInitialState(): void {
-  ball.reset();
-  player.reset();
-  opponent.reset();
+  drawBackground();
 
-  ball.vx = -ball.speed;
-  ball.vy = coinToss() ? -ball.speed : ball.speed;
-}
+  PLAYER.update();
+  PLAYER.render(CONTEXT);
 
-setToInitialState();
+  OPPONENT.update();
+  OPPONENT.render(CONTEXT);
 
-window.onload = function gameLoop(): void {
-  requestAnimationFrame(gameLoop);
+  BALL.update();
+  BALL.render(CONTEXT);
 
-  renderBackground(context);
-
-  if (detectCollision(ball, player)) {
-    ball.isHit(centerOfScreen);
+  const ballOutToLeft = BALL.outToLeft(0);
+  const ballOutToRight = BALL.outToRight(VIEW.width);
+  if (ballOutToLeft || ballOutToRight) {
+    GAME.setBallStartPosition(BALL);
+    GAME.setPlayerStartPosition(PLAYER);
+    GAME.setOpponentStartPosition(OPPONENT);
+    GAME.setServe(BALL);
   }
 
-  if (detectCollision(ball, opponent)) {
-    ball.isHit(centerOfScreen);
+  if (ballOutToLeft) {
+    GAME.playerScore += 1;
   }
 
-  if (ball.isOutToLeft()) {
-    score.player += 1;
-    setToInitialState();
+  if (ballOutToRight) {
+    GAME.opponentScore += 1;
   }
 
-  if (ball.isOutToRight($canvas.width)) {
-    score.opponent += 1;
-    setToInitialState();
+  if (BALL.hasHitLowerLimits(0)) {
+    BALL.velocity.y = BALL.speed;
   }
 
-  if (ball.vx < 0) {
-    opponent.moveToBall(ball);
-    player.stop();
-  } else if (AUTO_PLAY) {
-    player.moveToBall(ball);
-    opponent.stop();
+  if (BALL.hasHitUpperLimits(VIEW.height)) {
+    BALL.velocity.y = -BALL.speed;
   }
 
-  if(!AUTO_PLAY) {
-      player.up(KEYS.ArrowUp)
-      player.down(KEYS.ArrowDown)
+  if (detectCollision(BALL, PLAYER)) {
+    BALL.velocity.x = -BALL.speed;
+    BALL.velocity.y = Math.random() * (coinToss() ? BALL.speed : -BALL.speed);
   }
 
-  ball.update();
-  player.update();
-  opponent.update();
+  if (detectCollision(BALL, OPPONENT)) {
+    BALL.velocity.x = BALL.speed;
+    BALL.velocity.y = Math.random() * (coinToss() ? BALL.speed : -BALL.speed);
+  }
 
-  ball.keepInVerticalBounds($canvas.height);
+  if (BALL.velocity.x > 0) {
+    PLAYER.velocity.y =
+      BALL.position.y > PLAYER.position.y ? PLAYER.speed : -PLAYER.speed;
+  } else {
+    PLAYER.velocity.y = 0;
+  }
 
-  drawScore(context, `${score.opponent} : ${score.player}`);
-
-  ball.render(context);
-  player.render(context);
-  opponent.render(context);
+  if (BALL.velocity.x < 0) {
+    OPPONENT.velocity.y =
+      BALL.position.y > OPPONENT.position.y ? OPPONENT.speed : -OPPONENT.speed;
+  } else {
+    OPPONENT.velocity.y = 0;
+  }
 };

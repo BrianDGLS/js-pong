@@ -1,22 +1,13 @@
-import { Vector2D } from "./vector-2d";
+import { Vector2d } from "./vector";
 
-export class GameObject extends Vector2D {
-  public initialX: number;
-  public initialY: number;
+export abstract class GameObject {
+  public color: string;
+  public speed: number;
 
-  constructor(public x: number, public y: number) {
-    super(x, y);
-    this.initialX = x;
-    this.initialY = y;
-  }
+  public velocity: Vector2d;
+  public position: Vector2d;
 
-  public update(): void {
-    this.y += this.vy;
-    this.x += this.vx;
-  }
-
-  public reset(): void {
-    this.x = this.initialX;
-    this.y = this.initialY;
-  }
+  public abstract update();
+  public abstract reset(position: Vector2d);
+  public abstract render(context: CanvasRenderingContext2D);
 }

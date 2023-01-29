@@ -1,56 +1,37 @@
-import { Ball } from "./ball";
+import { clamp } from "./helpers";
+import { Vector2d } from "./vector";
 import { GameObject } from "./game-object";
-import { clamp } from "./helpers/clamp";
 
 export class Paddle extends GameObject {
-  public speed = 2;
   public width = 6;
-  public height = 40;
-  public color = "#fff";
-  public friction = 0.05;
+  public height = 50;
 
-  constructor(public x: number, public y: number) {
-    super(x, y);
-    this.y = this.y - this.height / 2;
+  public speed = 4;
+  public color = "white";
+
+  public friction = 0;
+
+  public velocity = new Vector2d(0, 0);
+
+  public update() {
+    const { velocity, friction, speed } = this;
+    this.position.y += this.velocity.y;
+
+    if (velocity.y) {
+      this.velocity.y = clamp(velocity.y - friction, 0, speed);
+    }
   }
 
-  public render(context: CanvasRenderingContext2D): void {
+  public reset(position: Vector2d) {
+    this.position = position;
+    this.velocity = new Vector2d(0, 0);
+  }
+
+  public render(context: CanvasRenderingContext2D) {
     context.save();
-    context.translate(this.x, this.y);
     context.fillStyle = this.color;
+    context.translate(this.position.x, this.position.y);
     context.fillRect(0, 0, this.width, this.height);
     context.restore();
-  }
-
-  public moveToBall(ball: Ball): void {
-    this.vy = this.y < ball.y ? this.speed : -this.speed;
-  }
-
-  public stop(): void {
-    this.vy = 0;
-  }
-
-  public up(pressed: boolean): void {
-    if (pressed) {
-      this.vy = -this.speed;
-    }
-  }
-
-  public down(pressed: boolean): void {
-    if (pressed) {
-      this.vy = this.speed;
-    }
-  }
-
-  public update(): void {
-    super.update();
-
-    if (this.vy > 0) {
-      this.vy -= this.friction;
-    }
-
-    if (this.vy < 0) {
-      this.vy += this.friction;
-    }
   }
 }
