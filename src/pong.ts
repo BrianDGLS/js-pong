@@ -1,98 +1,230 @@
-import { Ball } from "./ball";
-import { View } from "./view";
-import { Game } from "./game";
-import { Paddle } from "./paddle";
-import { Canvas } from "./canvas";
-import { Vector2d } from "./vector";
-import { coinToss, detectCollision } from "./helpers";
+import kaboom, { DrawTextOpt, Vec2 } from "kaboom";
 
-const VIEW = new View(innerWidth * 0.6, innerHeight * 0.7);
-const CANVAS = new Canvas(document.body, VIEW);
-const CONTEXT = CANVAS.get2dContext();
+const $canvas = document.querySelector("#pong");
 
-const BALL = new Ball();
-const PLAYER = new Paddle();
-const OPPONENT = new Paddle();
+kaboom({
+  width: 640,
+  height: 480,
+  font: "sinko",
+  background: [0, 0, 0],
+  canvas: $canvas as HTMLCanvasElement,
+});
 
-const GAME = new Game(VIEW);
+loadSound("hit", "./hit.wav");
 
-GAME.setBallStartPosition(BALL);
-GAME.setPlayerStartPosition(PLAYER);
-GAME.setOpponentStartPosition(OPPONENT);
+scene("main", () => {
+  let playerServe = true;
 
-function drawBackground() {
-  CONTEXT.save();
-  CONTEXT.fillStyle = "black";
-  CONTEXT.strokeStyle = "white";
-  CONTEXT.fillRect(0, 0, VIEW.width, VIEW.height);
-  CONTEXT.beginPath();
-  CONTEXT.moveTo(VIEW.width / 2, 0);
-  CONTEXT.lineTo(VIEW.width / 2, VIEW.height);
-  CONTEXT.setLineDash([5, 15]);
-  CONTEXT.stroke();
-  CONTEXT.restore();
-}
+  add([pos(width() / 2 - 4, 0), rect(2, height()), outline(1)]);
 
-window.onload = function main() {
-  requestAnimationFrame(main);
+  add(["top", area(), rect(width(), 0), color(0, 0, 0), pos(0, 0)]);
+  add(["bottom", area(), rect(width(), 0), color(0, 0, 0), pos(0, height())]);
+  add(["right", area(), rect(0, height()), color(0, 0, 0), pos(width(), 0)]);
+  add(["left", area(), rect(0, height()), color(0, 0, 0), pos(0, 0)]);
 
-  drawBackground();
+  const player = add([
+    "player",
+    "paddle",
+    area(),
+    rect(6, 60),
+    color(255, 255, 255),
+    pos(width() - 40, height() / 2),
+    {
+      speed: 160,
+    },
+  ]);
 
-  PLAYER.update();
-  PLAYER.render(CONTEXT);
+  const opponent = add([
+    "opponent",
+    "paddle",
+    area(),
+    rect(6, 60),
+    color(255, 255, 255),
+    pos(40, height() / 2),
+    {
+      speed: 160,
+      moveToBall(ball) {
+        if (ball.velocity.x < 0) {
+          opponent.moveTo(
+            opponent.pos.x,
+            ball.pos.y - ball.radius,
+            opponent.speed
+          );
+        } else {
+          opponent.moveTo(
+            opponent.pos.x,
+            height() / 2 - opponent.height / 2,
+            opponent.speed
+          );
+        }
+      },
+    },
+  ]);
 
-  OPPONENT.update();
-  OPPONENT.render(CONTEXT);
+  const score = add([
+    text("0   0", {
+      size: 48,
+    }),
+    (origin as any)("center"),
+    color(150, 150, 150),
+    pos(width() / 2, 80),
+    {
+      player: 0,
+      opponent: 0,
+      winningScore: 3,
+      getText() {
+        return `${this.opponent}   ${this.player}`;
+      },
+    },
+  ]);
 
-  BALL.update();
-  BALL.render(CONTEXT);
+  const ball = add([
+    "ball",
+    circle(6),
+    area({ width: 12, height: 12, offset: vec2(-6) }),
+    color(255, 255, 255),
+    pos(width() / 2, height() / 2),
+    {
+      speed: 200,
+      velocity: vec2(0, 0),
+      serve() {
+        ball.velocity.x = playerServe ? -ball.speed : ball.speed;
+        ball.velocity.y = rand() * (chance(0.5) ? ball.speed : -ball.speed);
+        playerServe = playerServe;
+      },
+      reset() {
+        this.pos.x = width() / 2;
+        this.pos.y = height() / 2;
+        this.speed = 200;
+      },
+    },
+  ]);
 
-  const ballOutToLeft = BALL.outToLeft(0);
-  const ballOutToRight = BALL.outToRight(VIEW.width);
-  if (ballOutToLeft || ballOutToRight) {
-    GAME.setBallStartPosition(BALL);
-    GAME.setPlayerStartPosition(PLAYER);
-    GAME.setOpponentStartPosition(OPPONENT);
-    GAME.setServe(BALL);
-  }
+  onKeyDown("up", () => {
+    player.move(0, -player.speed);
+  });
 
-  if (ballOutToLeft) {
-    GAME.playerScore += 1;
-  }
+  onKeyDown("down", () => {
+    player.move(0, player.speed);
+  });
 
-  if (ballOutToRight) {
-    GAME.opponentScore += 1;
-  }
+  onLoad(() => {
+    ball.serve();
+  });
 
-  if (BALL.hasHitLowerLimits(0)) {
-    BALL.velocity.y = BALL.speed;
-  }
+  onUpdate(() => {
+    opponent.moveToBall(ball);
+    ball.move(ball.velocity);
 
-  if (BALL.hasHitUpperLimits(VIEW.height)) {
-    BALL.velocity.y = -BALL.speed;
-  }
+    if (
+      score.player >= score.winningScore ||
+      score.opponent >= score.winningScore
+    ) {
+      go("game-over", score.player, score.opponent);
+    }
+  });
 
-  if (detectCollision(BALL, PLAYER)) {
-    BALL.velocity.x = -BALL.speed;
-    BALL.velocity.y = Math.random() * (coinToss() ? BALL.speed : -BALL.speed);
-  }
+  let soundPlayed = false;
+  onCollide("ball", "*", () => {
+    if (!soundPlayed) {
+      play("hit");
+      soundPlayed = true;
+      setTimeout(() => {
+        soundPlayed = false;
+      }, 50);
+    }
+  });
 
-  if (detectCollision(BALL, OPPONENT)) {
-    BALL.velocity.x = BALL.speed;
-    BALL.velocity.y = Math.random() * (coinToss() ? BALL.speed : -BALL.speed);
-  }
+  onCollide("ball", "player", () => {
+    ball.velocity.x = -ball.speed;
+    ball.velocity.y = rand() * (chance(0.5) ? ball.speed : -ball.speed);
+  });
 
-  if (BALL.velocity.x > 0) {
-    PLAYER.velocity.y =
-      BALL.position.y > PLAYER.position.y ? PLAYER.speed : -PLAYER.speed;
-  } else {
-    PLAYER.velocity.y = 0;
-  }
+  onCollide("ball", "paddle", () => {
+    ball.speed += 20;
+  });
 
-  if (BALL.velocity.x < 0) {
-    OPPONENT.velocity.y =
-      BALL.position.y > OPPONENT.position.y ? OPPONENT.speed : -OPPONENT.speed;
-  } else {
-    OPPONENT.velocity.y = 0;
-  }
-};
+  onCollide("ball", "opponent", () => {
+    ball.velocity.x = ball.speed;
+    ball.velocity.y = rand() * (chance(0.5) ? ball.speed : -ball.speed);
+  });
+
+  onCollide("ball", "bottom", () => {
+    ball.velocity.y = rand() * -ball.speed;
+  });
+
+  onCollide("ball", "top", () => {
+    ball.velocity.y = rand() * ball.speed;
+  });
+
+  onCollide("ball", "left", () => {
+    score.player += 1;
+    score.text = score.getText();
+
+    ball.reset();
+    ball.serve();
+  });
+
+  onCollide("ball", "right", () => {
+    score.opponent += 1;
+    score.text = score.getText();
+
+    ball.reset();
+    ball.serve();
+  });
+
+  onCollide("paddle", "bottom", (paddle) => {
+    paddle.pos.y = height() - paddle.height;
+  });
+
+  onCollide("paddle", "top", (paddle) => {
+    paddle.pos.y = 0;
+  });
+});
+
+scene("menu", () => {
+  const btn = add([
+    text("Play", { size: 48 }),
+    pos(width() / 2, height() / 2),
+    area({ cursor: "pointer" }),
+    scale(1),
+    (origin as any)("center"),
+  ]);
+
+  btn.onClick(() => {
+    go("main");
+  });
+});
+
+scene("game-over", (playerScore: number, opponentScore: number) => {
+  add([
+    text(`${opponentScore} : ${playerScore}`, {
+      size: 24,
+    }),
+    (origin as any)("center"),
+    color(150, 150, 150),
+    pos(width() / 2, 80),
+  ]);
+
+  add([
+    text(playerScore > opponentScore ? "You Won!" : "You Lost!", {
+      size: 24,
+    }),
+    (origin as any)("center"),
+    color(150, 150, 150),
+    pos(width() / 2, 120),
+  ]);
+
+  const btn = add([
+    text("Play Again", { size: 48 }),
+    pos(width() / 2, height() / 2),
+    area({ cursor: "pointer" }),
+    (origin as any)("center"),
+  ]);
+
+  btn.onClick(() => {
+    go("main");
+  });
+});
+
+go("menu");
