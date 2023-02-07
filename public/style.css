@@ -1,9 +1,5 @@
 body {
   text-align: center;
-  background: black;
-}
-
-canvas {
-  margin-top: 40px;
-  border: 2px solid white;
+  background: #efe;
+  margin: 0;
 }

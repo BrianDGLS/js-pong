@@ -1,7 +1,7 @@
 {
 	"scripts": {
 		"dev": "esbuild src/pong.ts --bundle --outfile=public/scripts/pong.js --watch",
-		"build": "esbuild src/pong.ts --bundle --outfile=public/scripts/pong.js",
+		"build": "esbuild src/pong.ts --bundle --outfile=public/scripts/pong.js --minify",
     "serve": "serve public"
 	},
 	"dependencies": {
